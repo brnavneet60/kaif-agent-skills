@@ -102,15 +102,40 @@ store_report(
 - Report `PUBLISH_FAILED` if persistence fails after the retry, and still return
   the full markdown to the user so nothing is lost.
 
+Immediately after persist (or persist failure), call `store_run_record` so
+kaif-value can score the job:
+
+```
+store_run_record(
+  run_id = "<kagent session id or YYYYMMDD-HHMM-short>",
+  repo_name = "architecture-docs",
+  card_json = {
+    "run_id": "<same>",
+    "flow": "architecture",
+    "scenario": "<catalog enum or unknown>",
+    "agent": "software-architect",
+    "status": "PUBLISHED | PUBLISH_FAILED | BLOCKED_ON_USER | INCOMPLETE",
+    "started_at": "<ISO-8601>",
+    "ended_at": "<ISO-8601>",
+    "hitl_wait_s": 0,
+    "artifact": {"sha": "<from store_report or null>", "url": "<html_url or null>", "path": "<report_path or null>"}
+  }
+)
+```
+
+Do not put tokens, USD, or quality_score on the card — the kaif-value enricher
+fills those from Prometheus and the Gitea blob.
+
 ## Reply contract
 
 Keep the chat reply short; the document lives in Gitea:
 
 ```
-STATUS: PUBLISHED | PUBLISH_FAILED
+STATUS: PUBLISHED | PUBLISH_FAILED | BLOCKED_ON_USER | INCOMPLETE
 doc_path: architecture/<slug>-<date>.md
 doc_sha:  <sha or none>
 doc_url:  <html_url or none>
+run_id:   <run_id passed to store_run_record>
 summary:  <2-3 lines: recommendation + cost band + top risk>
 ```
 
